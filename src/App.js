@@ -1,26 +1,77 @@
 import React from 'react';
-import logo from './logo.svg';
+import { observer } from 'mobx-react-lite';
+import { types } from "mobx-state-tree"
 import './App.css';
 
-function App() {
+// stores
+const TimeModel = types
+    .model({
+        date: new Date(),
+    })
+    .actions(self => ({
+      update() { self.date = new Date(); }
+    }));
+
+const ZoneModel = types
+  .model({
+    name: "Stockholm",
+  }).actions(self => ({
+    set(name) { self.name = name; }
+  }));
+
+const RootStore = types.model({
+    timeModel: types.optional(TimeModel, {}),
+    zoneModel: types.optional(ZoneModel, {}),
+})
+
+const store = RootStore.create({});
+
+// the context
+const MyContext = React.createContext();
+
+// components
+const TimeView = observer((props) => {
+  console.log("TimeView.render()");
+  const { timeModel } = React.useContext(MyContext);
+  return (
+    <div>
+      <h2>Current time is {timeModel.date.toLocaleTimeString()}.</h2>
+    </div>
+  );
+});
+
+const ClockView = observer((props) => {
+  console.log("ClockView.render()");
+  const { zoneModel } = React.useContext(MyContext);
+  return (
+    <React.Fragment>
+        <p>{zoneModel.name}</p>
+        <TimeView />
+    </React.Fragment>
+  );
+});
+
+export default function App(props) {
+  console.log("App.render()");
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+        <MyContext.Provider value={store}>
+          <ClockView />
+        </MyContext.Provider>
     </div>
   );
 }
 
-export default App;
+// some logic to modify state
+function updateTime() {
+  console.log("updateTime()");
+  store.timeModel.update();
+}
+
+function updateZone() {
+  console.log("updateZone() - ONLY ONCE !!!");
+  store.zoneModel.set("London");
+}
+
+setInterval(() => updateTime(), 1000);
+setTimeout(() => updateZone(), 10000);
